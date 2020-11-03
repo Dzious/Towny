@@ -345,12 +345,12 @@ public class TownyPlayerListener implements Listener {
 	}
 
 	/**
-	 * Handles clicking on beds in the nether, sending blocks to a map so we can track when explosions occur from beds.
-	 * Spigot API's BlockExplodeEvent#getBlock() always returns AIR for beds exploding, which is why this is necessary.
+	 * Handles clicking on beds in the nether/respawn anchors in the overworld sending blocks to a map so we can track when explosions occur from beds.
+	 * Spigot API's BlockExplodeEvent#getBlock() always returns AIR for beds/anchors exploding, which is why this is necessary.
 	 * @param event PlayerInteractEvent
 	 */
 	@EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-	public void onPlayerInteractWithBed(PlayerInteractEvent event) {
+	public void onPlayerBlowsUpBedOrRespawnAnchor(PlayerInteractEvent event) {
 
 		if (plugin.isError()) {
 			event.setCancelled(true);
@@ -365,6 +365,10 @@ public class TownyPlayerListener implements Listener {
 			if (Tag.BEDS.isTagged(block.getType()) && event.getPlayer().getWorld().getEnvironment().equals(Environment.NETHER)) {
 				org.bukkit.block.data.type.Bed bed = ((org.bukkit.block.data.type.Bed) block.getBlockData());
 				BukkitTools.getPluginManager().callEvent(new BedExplodeEvent(event.getPlayer(), block.getLocation(), block.getRelative(bed.getFacing()).getLocation(), block.getType()));
+			} else if (block.getType() == Material.RESPAWN_ANCHOR) {
+				org.bukkit.block.data.type.RespawnAnchor anchor = ((org.bukkit.block.data.type.RespawnAnchor) block.getBlockData());
+				if (anchor.getCharges() == 4)
+					BukkitTools.getPluginManager().callEvent(new BedExplodeEvent(event.getPlayer(), block.getLocation(), null, block.getType()));
 			}
 		}
 	}
