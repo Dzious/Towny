@@ -18,6 +18,7 @@ import com.palmergames.bukkit.towny.regen.TownyRegenAPI;
 import com.palmergames.bukkit.towny.tasks.MobRemovalTimerTask;
 import com.palmergames.bukkit.towny.utils.CombatUtil;
 import com.palmergames.bukkit.towny.utils.EntityTypeUtil;
+import com.palmergames.bukkit.towny.utils.ExplosionUtil;
 import com.palmergames.bukkit.towny.war.common.WarZoneConfig;
 import com.palmergames.bukkit.towny.war.eventwar.War;
 import com.palmergames.bukkit.util.ArraySort;
@@ -259,6 +260,8 @@ public class TownyEntityListener implements Listener {
 	
 	/**
 	 * Prevent explosions from hurting non-player entities.
+	 * 
+	 * Doesn't stop damage to vehicles or hanging entities.
 	 *  
 	 * @param event - EntityDamageEvent
 	 */
@@ -274,16 +277,10 @@ public class TownyEntityListener implements Listener {
 		if (event.getEntity() instanceof Player)
 			return;
 
-		TownyWorld townyWorld = null;
-		try {
-			townyWorld = TownyUniverse.getInstance().getDataSource().getWorld(event.getEntity().getWorld().getName());
-		} catch (NotRegisteredException e) {
-			e.printStackTrace();
-		}
-
-		if ((event.getCause() == DamageCause.BLOCK_EXPLOSION || event.getCause() == DamageCause.ENTITY_EXPLOSION || event.getCause() == DamageCause.LIGHTNING) && !locationCanExplode(townyWorld, event.getEntity().getLocation()))
+		if ((event.getCause() == DamageCause.BLOCK_EXPLOSION || event.getCause() == DamageCause.ENTITY_EXPLOSION || event.getCause() == DamageCause.LIGHTNING) && !ExplosionUtil.locationCanExplode(event.getEntity().getLocation())) {
+			event.setDamage(0);
 			event.setCancelled(true);
-
+		}
 	}
 
 	/**
@@ -564,7 +561,7 @@ public class TownyEntityListener implements Listener {
 
 		case WITHER:
 
-			if (!locationCanExplode(townyWorld, event.getBlock().getLocation())) {
+			if (!ExplosionUtil.locationCanExplode(event.getBlock().getLocation())) {
 				event.setCancelled(true);
 				return;
 			}
@@ -586,39 +583,6 @@ public class TownyEntityListener implements Listener {
 
 		}
 
-	}
-
-	/**
-	 * Test if this location has explosions enabled.
-	 * 
-	 * @param world - Towny-enabled World
-	 * @param target - Location to check
-	 * @return true if allowed.
-	 */
-	public boolean locationCanExplode(TownyWorld world, Location target) {
-
-		Coord coord = Coord.parseCoord(target);
-
-		if (world.isWarZone(coord) && !WarZoneConfig.isAllowingExplosionsInWarZone()) {
-			return false;
-		}
-
-		if (TownyAPI.getInstance().isWilderness(target))
-			return world.isExpl();
-		
-		TownBlock townBlock = TownyAPI.getInstance().getTownBlock(target);
-		Town town = null;
-		try {
-			town = townBlock.getTown();
-		} catch (NotRegisteredException ignored) {
-		}
-		if (world.isUsingTowny() && !world.isForceExpl()) {
-			if ((!townBlock.getPermissions().explosion) || (TownyAPI.getInstance().isWarTime() && TownySettings.isAllowWarBlockGriefing() && !town.hasNation() && !town.isBANG())) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	/**
@@ -824,22 +788,12 @@ public class TownyEntityListener implements Listener {
 			return;
 		}
 
-		TownyWorld townyWorld = null;
-		String worldName = null;
+		if (!TownyAPI.getInstance().isTownyWorld(event.getEntity().getWorld()))
+			return;
+		
 		Entity hanging = event.getEntity();		
-
-		try {
-			worldName = hanging.getWorld().getName();
-			townyWorld = TownyUniverse.getInstance().getDataSource().getWorld(worldName);
-
-			if (!townyWorld.isUsingTowny())
-				return;
-
-		} catch (NotRegisteredException e1) {
-			// Not a known Towny world.
-			return;		
-		}
-
+		TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(hanging.getWorld().getName());
+		
 		// TODO: Keep an eye on https://hub.spigotmc.org/jira/browse/SPIGOT-3999 to be completed.
 		// This workaround prevent boats from destroying item_frames.
 		if (event.getCause().equals(RemoveCause.PHYSICS) && hanging.getType().equals(EntityType.ITEM_FRAME)) {
@@ -855,7 +809,6 @@ public class TownyEntityListener implements Listener {
 				}
 			}
 		}
-
 
 		/*
 		 * It's a player or an entity (probably an explosion)
@@ -896,7 +849,7 @@ public class TownyEntityListener implements Listener {
 		
 			if (event.getCause() == RemoveCause.EXPLOSION) {
 				// Explosions are blocked in this plot
-				if (!locationCanExplode(townyWorld, hanging.getLocation())) {
+				if (!ExplosionUtil.locationCanExplode(hanging.getLocation())) {
 					event.setCancelled(true);
 				// Explosions are enabled, must check if in the wilderness and if we have explrevert in that world
 				} else {
@@ -917,7 +870,7 @@ public class TownyEntityListener implements Listener {
 
 			case EXPLOSION:
 
-				if (!locationCanExplode(townyWorld, event.getEntity().getLocation()))
+				if (!ExplosionUtil.locationCanExplode(event.getEntity().getLocation()))
 					event.setCancelled(true);
 				break;
 
@@ -964,13 +917,7 @@ public class TownyEntityListener implements Listener {
 		if (!TownyAPI.getInstance().isTownyWorld(event.getEntity().getWorld()))
 			return;
 		
-		try {
-			if (!locationCanExplode(TownyAPI.getInstance().getDataSource().getWorld(event.getEntity().getWorld().getName()), event.getEntity().getLocation())) {
-				event.setCancelled(true);
-			}
-		} catch (NotRegisteredException ignored) {
-		}
-			
-			
+		if (!!ExplosionUtil.locationCanExplode(event.getEntity().getLocation()))
+			event.setCancelled(true);
 	}
 }
