@@ -349,7 +349,7 @@ public class TownyPlayerListener implements Listener {
 	 * Spigot API's BlockExplodeEvent#getBlock() always returns AIR for beds/anchors exploding, which is why this is necessary.
 	 * @param event PlayerInteractEvent
 	 */
-	@EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onPlayerBlowsUpBedOrRespawnAnchor(PlayerInteractEvent event) {
 
 		if (plugin.isError()) {
@@ -450,6 +450,7 @@ public class TownyPlayerListener implements Listener {
 				case MINECART_CHEST:
 				case MINECART_FURNACE:				
 				case MINECART_HOPPER:
+				case BOAT:
 					mat = EntityTypeUtil.parseEntityToMaterial(event.getRightClicked().getType());
 					actionType = ActionType.SWITCH;
 					break;
